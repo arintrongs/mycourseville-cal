@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "staging": "mycoursevillecal",
+    "default": "mycoursevillecal"
+  }
+}
