@@ -7,7 +7,7 @@ import moment from "moment"
 import "./App.css"
 
 import CoursePanel from "./CoursePanel"
-import { withBackendUrl } from "./utils"
+import { withBackendUrl, withCalendarUrl } from "./utils"
 
 class App extends Component {
   state = {
@@ -20,7 +20,8 @@ class App extends Component {
     token: "",
     courses: [],
     selected_courses: [],
-    loading: true,
+    login_loading: true,
+    loading: false,
     last_update: null
   }
   componentDidMount = async () => {
@@ -28,20 +29,14 @@ class App extends Component {
 
     if (token) {
       try {
-        const { data } = await axios.post(withBackendUrl("/auth/verify"), { token })
-        await this.handleRequestCourses({ token })
-        this.setState({
-          auth: true,
-          ...data
-        })
+        await this.handleVerify(token)
       } catch (e) {
         this.setState({ auth: false })
-        await this.handleAuthorize()
       }
     } else {
       await this.handleAuthorize()
     }
-    this.setState({ loading: false })
+    this.setState({ login_loading: false })
   }
   handleRequestCourses = async payload => {
     const { data } = await axios.post(withBackendUrl("/auth/courses"), payload)
@@ -51,14 +46,20 @@ class App extends Component {
     try {
       const { code } = qs.parse(this.props.location.search)
       const { data } = await axios.post(withBackendUrl("/access_token"), { code })
-
-      this.setState({
-        auth: true,
-        ...data
-      })
+      localStorage.setItem("token", data.token)
+      await this.handleVerify(data.token)
     } catch (e) {
       console.log(e)
+      this.setState({ login_loading: false })
     }
+  }
+  handleVerify = async token => {
+    const { data } = await axios.post(withBackendUrl("/auth/verify"), { token })
+    await this.handleRequestCourses({ token })
+    this.setState({
+      auth: true,
+      ...data
+    })
   }
   handleRefreshToken = async refresh_token => {
     try {
@@ -167,7 +168,10 @@ class App extends Component {
         </div>
         <div className="url-provider">
           <Input.Group className="calendar-url" compact>
-            <Input value={withBackendUrl(`/calendar/${this.state.uid}`)} ref={textarea => (this.textArea = textarea)} />
+            <Input
+              value={withCalendarUrl(`/calendar/${this.state.uid}`)}
+              ref={textarea => (this.textArea = textarea)}
+            />
             <Button type="primary" onClick={this.handleCopy}>
               Copy URL
             </Button>
@@ -191,7 +195,7 @@ class App extends Component {
     )
   }
   render() {
-    if (this.state.loading) {
+    if (this.state.login_loading) {
       return (
         <div className="App">
           <Spin indicator={<Icon type="loading" style={{ fontSize: 36 }} spin />} tip="Loading..." />
